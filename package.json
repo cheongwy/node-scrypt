@@ -1,0 +1,11 @@
+{ "name" : "node-scrypt"
+, "description" : "Node library wrapper for the native C implementation of scrypt."
+, "version": "0.0.1"
+, "main": "scrypt.js"
+, "repository" :
+  { "type" : "git"
+  , "url" : "https://github.com/cheongwy/node-scrypt.git"
+  }
+, "dependencies": {
+}
+}
