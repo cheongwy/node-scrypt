@@ -41,8 +41,6 @@ def build(bld):
   obj.includes = """
     deps
     deps/crypto/
-    deps/scryptenc/
-    deps/util/
   """  
   obj.name = "node-scrypt"
   obj.source = "scrypt.cc"
