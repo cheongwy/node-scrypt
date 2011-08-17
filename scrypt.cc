@@ -8,11 +8,20 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <openssl/sha.h>
+#include <openssl/hmac.h>
+#include <openssl/evp.h>
+#include <openssl/bio.h>
+#include <openssl/buffer.h>
+
 // link as C since we compile as C and not C++
 // see wscript
 extern "C" {
 	#include <crypto_scrypt.h>
 }
+
+#include <iostream>
+using namespace std;
 
 using namespace node;
 using namespace v8;
@@ -20,51 +29,8 @@ using namespace v8;
 #define ENCBLOCK 65536
 
 static int getsalt(uint8_t salt[32]);
-
-class Scrypt: ObjectWrap
-{
-	private:
-	int m_count;
-
-	public:
-	
-	Scrypt(): m_count(0){}
-	~Scrypt() {}
-	
-	static Persistent<FunctionTemplate> s_ct;
-	static void Initialize(Handle<Object> target)
-	{
-		HandleScope scope;
-		
-		Local<FunctionTemplate> t = FunctionTemplate::New(New);
-		
-		s_ct = Persistent<FunctionTemplate>::New(t);
-		s_ct->InstanceTemplate()->SetInternalFieldCount(1);
-		s_ct->SetClassName(String::NewSymbol("Scrypt"));
-		
-		NODE_SET_PROTOTYPE_METHOD(s_ct, "encrypt", Encrypt);
-		
-		target->Set(String::NewSymbol("Scrypt"), s_ct->GetFunction());
-	}
-	
-    static Handle<Value> New(const Arguments &args) {
-        HandleScope scope;
-		
-        Scrypt *scrypt = new Scrypt();
-        scrypt->Wrap(args.This());
-        return args.This();
-    }
-	
-	static Handle<Value> Encrypt(const Arguments& args)
-	{
-		HandleScope scope;
-		Scrypt* scrypt = ObjectWrap::Unwrap<Scrypt>(args.This());
-		scrypt->m_count++;
-		Local<String> result = String::New("Hello Scrypt");
-		return scope.Close(result);
-	}
-
-};
+static char *base64(const unsigned char *input, int length);
+static char *unbase64(unsigned char *input, int length);
 
 static Handle<Value> Encrypt(const Arguments& args)
 {
@@ -75,38 +41,78 @@ static Handle<Value> Encrypt(const Arguments& args)
 	}
 	
 	Local<String> password = args[0]->ToString();
-	char passwd_val;
-	char * passwd = &passwd_val;
-	password->WriteUtf8(passwd);
-	printf ("Incoming password: [%s]\n",passwd);
+
+	String::Utf8Value passwd(password);
+	printf ("Incoming password: [%s]\n",*passwd);
 	
-	int len = 64;
+	int len = 32;
 	uint8_t dk[len];
-	uint8_t * key_enc = dk;
 	size_t buflen = len;
 	
-	int N = 16384;
+	int N = 1024;
 	int r = 8;
-	int p = 1;
-	//uint8_t salt[32]; 
-	char salt[32] = "695d5df642041b86f2775d2b4f0f722";
+	int p = 8;
+	String::Utf8Value salt(String::New(""));
 	
 	const char *salt_err_msg = "Unable to obtain salt";	
 	int rc;
-	//if ((rc = getsalt(salt)) != 0)
-	//	return ThrowException(Exception::Error(String::New(salt_err_msg)));
-	//printf ("Salt: [%s]\n", salt);
-	
+//	if ((rc = getsalt(salt)) != 0)
+//		return ThrowException(Exception::Error(String::New(salt_err_msg)));
+//	printf ("Salt: [%s]\n", base64(salt,32));
+
 	const char *enc_err_msg = "An error occured when encrypting password";	
-	if( rc = crypto_scrypt((uint8_t *)passwd, strlen(passwd), (uint8_t *)salt, 32, N, r, p, dk, buflen)!=0)
+	if( rc = crypto_scrypt((uint8_t *)*passwd, strlen(*passwd), (uint8_t *)*salt, strlen(*salt), N, r, p, dk, buflen)!=0)
 		return ThrowException(Exception::Error(String::New(enc_err_msg)));
 	
 	//int ret = scryptenc_buf(inbuf, inbuflen, outbuf, passwd, passwdlen, maxmem, maxmem_frac, maxtime);
-	printf ("[%u] is the encrypted password\n",dk);
+	char *encrypted = base64(dk, len);
+	printf ("[%s] is the encrypted password\n",encrypted);
 	
-	Local<String> result = String::New((char *)key_enc, len);
+	Local<String> result = String::New(encrypted);
 	return scope.Close(result);
 }
+
+static char *base64(const unsigned char *input, int length)
+{
+	BIO *bmem, *b64;
+	BUF_MEM *bptr;
+	
+	b64 = BIO_new(BIO_f_base64());
+	bmem = BIO_new(BIO_s_mem());
+	b64 = BIO_push(b64, bmem);
+	BIO_write(b64, input, length);
+	BIO_flush(b64);
+	BIO_get_mem_ptr(b64, &bptr);
+	
+	char *buff = (char *)malloc(bptr->length);
+	memcpy(buff, bptr->data, bptr->length-1);
+	buff[bptr->length] = 0;
+	
+	BIO_free_all(b64);
+	
+	return buff;
+}
+
+/* Not used but just in case we need it for salting */
+static char *unbase64(unsigned char *input, int length)
+{
+	BIO *b64, *bmem;
+	
+	char *buffer = (char *)malloc(length);
+	memset(buffer, 0, length);
+	
+	b64 = BIO_new(BIO_f_base64());
+	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+	bmem = BIO_new_mem_buf(input, length);
+	BIO_push(b64, bmem);
+	
+	BIO_read(bmem, buffer, length);
+	
+	BIO_free_all(bmem);
+	
+	return buffer;
+}
+
 
 /* Not used. Unless we want to store the random salts along with the password */
 static int getsalt(uint8_t salt[32])
@@ -150,7 +156,6 @@ err0:
 	return (4);
 }
 
-Persistent<FunctionTemplate> Scrypt::s_ct;
 
 extern "C" void init(Handle<Object> target)
 {
