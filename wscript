@@ -24,6 +24,7 @@ def build(bld):
   scryptc.name = "scryptc"
   scryptc.target = "scryptc"
   scryptc.install_path = None
+  scryptc.cflags = ["-fPIC"]
   
   sha256 = bld.new_task_gen("cc")
   sha256.source = "deps/crypto/sha256.c"
@@ -34,7 +35,8 @@ def build(bld):
   """
   sha256.name = "sha256"
   sha256.target = "sha256"
-  sha256.install_path = None  
+  sha256.install_path = None
+  sha256.cflags = ["-fPIC"]
   
   obj = bld.new_task_gen('cxx', 'shlib', 'node_addon')
   obj.add_objects = "scryptc sha256"
