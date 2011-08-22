@@ -32,7 +32,7 @@
 
 #include "sysendian.h"
 
-#include "sha256.h"
+#include "sha256scrypt.h"
 
 /*
  * Encode a length len/4 vector of (uint32_t) into a length len vector of
