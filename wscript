@@ -27,7 +27,7 @@ def build(bld):
   scryptc.cflags = ["-fPIC"]
   
   sha256 = bld.new_task_gen("cc")
-  sha256.source = "deps/crypto/sha256.c"
+  sha256.source = "deps/crypto/sha256scrypt.c"
   sha256.includes = """
     deps/
     deps/crypto/

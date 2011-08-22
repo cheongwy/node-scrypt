@@ -5,15 +5,15 @@ var encrypt = function(password) {
 	return hash;
 };
 
-//for(var i =0; i< 10; i++) {
-//	var enc = encrypt("golden");
-//	console.log("Hash=> "+enc);
-//	console.log("Length=> "+enc.length);
-//	
-//	if(enc !== "I8OYrbL8BeW677adEoJlBqiRuygRwFxobkpSFGdXvxs=") {
-//		throw Error("Hash mismatch");
-//	}
-//	
-//}
+for(var i =0; i< 12; i++) {
+	var enc = encrypt("golden");
+	console.log("Hash=> "+enc);
+	console.log("Length=> "+enc.length);
+	
+	if(enc !== "I8OYrbL8BeW677adEoJlBqiRuygRwFxobkpSFGdXvxs=") {
+		throw Error("Hash mismatch");
+	}
+	
+}
 
 exports.encrypt = encrypt; 
